@@ -35,7 +35,8 @@ th,td{border:1px solid var(--ink);padding:6px 8px;text-align:left}th{background:
 .game{border:2px solid var(--ink);border-radius:8px;padding:14px}
 .game p{font-size:.95rem}
 .btn{font:inherit;font-weight:bold;border:2px solid var(--ink);background:var(--hl);color:var(--ink);padding:9px 16px;border-radius:8px;cursor:pointer}
-.btn:hover,.opt:hover{background:#ffe88a}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn:hover:not(:disabled),.opt:hover{background:#ffe88a}
 .btn:focus-visible,.opt:focus-visible,nav button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--red);outline-offset:2px}
 .bar{height:10px;background:var(--grid);border-radius:5px;margin:8px 0 14px}
 .bar i{display:block;height:100%;background:var(--ink);border-radius:5px;transition:width .3s}
@@ -63,8 +64,8 @@ li{margin:4px 0;max-width:70ch}
   <h1>La <mark>materia</mark> y sus estados</h1>
   <p class="sub">Química de 1.er año: leé la teoría, jugá y sumá puntos para el ranking.</p>
   <div class="me">
-    <label for="nombre">Tu nombre:</label>
-    <input id="nombre" maxlength="24" placeholder="Nombre y apellido" autocomplete="off">
+    <label for="nombre">Tu nombre y apellido:</label>
+    <input id="nombre" maxlength="40" placeholder="Nombre y apellido" autocomplete="off">
   </div>
   <p class="warn" id="aviso" role="alert"></p>
 </header>
@@ -119,7 +120,12 @@ li{margin:4px 0;max-width:70ch}
     <div><b>Gases</b><textarea class="ej" data-k="g" rows="4" placeholder="Ej.: el aire" aria-label="Ejemplos de gases"></textarea></div>
   </div>
   <p><button class="btn" id="cp">Copiar mis ejemplos</button> <span class="nota" id="cpm"></span></p>
-  <p style="margin-top:14px"><button class="btn" data-go="juegos">Ir a jugar</button></p>
+  <div style="margin-top:18px;border-top:2px dashed var(--mut);padding-top:14px">
+    <h3 style="margin-top:0">Control de lectura</h3>
+    <p id="ctlmsg" class="warn"></p>
+    <button class="btn" id="ctlbtn" disabled>Hacer el control de lectura</button>
+    <div id="ctlq" hidden></div>
+  </div>
 </section>
 
 <section id="juegos" hidden>
@@ -157,6 +163,52 @@ const sh=a=>[...a].sort(()=>Math.random()-.5);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const CAMB=["Fusión","Vaporización","Sublimación","Ionización","Solidificación","Condensación","Sublimación regresiva","Desionización"];
 
+/* ===== CONTROL DE LECTURA ===== */
+const MIN=60;let tl=0,ctlNote="";
+const nombreOK=()=>$("#nombre").value.trim().split(/\s+/).filter(w=>w.length>1).length>=2;
+const lecKey=()=>"lec|"+$("#nombre").value.trim().replace(/\s+/g," ").toLowerCase();
+const leido=()=>nombreOK()&&!!localStorage.getItem(lecKey());
+const CTL=[
+ {q:"¿Qué ejemplo de sublimación aparece en la teoría?",a:"El hielo seco",o:["El hielo seco","Un helado que se derrite","El agua hirviendo","El rocío en un vaso"]},
+ {q:"¿Dónde hay plasma, según la teoría?",a:"En el Sol, en los rayos y en los tubos de neón",o:["En el Sol, en los rayos y en los tubos de neón","En el agua del mar","En el aire de una habitación","En una moneda"]},
+ {q:"Mientras dura un cambio de estado, la temperatura…",a:"no sube ni baja",o:["no sube ni baja","sube siempre","baja siempre","se duplica"]},
+ {q:"¿Cuándo hierve el agua a menos de 100 °C?",a:"En lo alto de una montaña",o:["En lo alto de una montaña","En el freezer","En una pava tapada","Al nivel del mar"]},
+ {q:"Un cambio regresivo ocurre cuando el cuerpo…",a:"cede energía (calor)",o:["cede energía (calor)","absorbe energía","no cambia de energía","gana masa"]},
+ {q:"En un líquido, la atracción entre las partículas es…",a:"media",o:["media","muy fuerte","casi nula","inexistente"]},
+ {q:"Una sustancia es…",a:"una clase de materia con propiedades siempre iguales",o:["una clase de materia con propiedades siempre iguales","una porción limitada de materia con forma","todo lo que se puede tocar","un estado de la materia"]},
+ {q:"La condensación es el paso de…",a:"gas a líquido",o:["gas a líquido","líquido a gas","sólido a líquido","líquido a sólido"]}
+];
+function updCtl(){
+  if(!$("#ctlq").hidden)return;
+  const m=$("#ctlmsg"),b=$("#ctlbtn");
+  if(leido()){m.textContent="✔ Lectura aprobada. Ya podés jugar.";b.textContent="Ir a jugar";b.disabled=false;return}
+  b.textContent="Hacer el control de lectura";
+  if(!nombreOK()){m.textContent=ctlNote+"Escribí tu nombre y apellido arriba para empezar.";b.disabled=true}
+  else if(tl<MIN){m.textContent=ctlNote+`Leé con atención: el control se habilita en ${MIN-tl} s.`;b.disabled=true}
+  else{m.textContent=ctlNote+"Respondé 4 preguntas sobre la teoría. Tenés que acertar las 4 para poder jugar.";b.disabled=false}
+}
+function openQuiz(){
+  ctlNote="";
+  const qs=sh(CTL).slice(0,4).map(x=>({...x,o:sh(x.o)}));
+  const box=$("#ctlq");box.hidden=false;$("#ctlbtn").hidden=true;
+  $("#ctlmsg").textContent="Elegí una opción en cada pregunta.";
+  box.innerHTML=qs.map((x,i)=>`<p class="q" style="font-size:1.05rem">${i+1}. ${esc(x.q)}</p>`+x.o.map(o=>`<label style="display:block;margin:4px 0"><input type="radio" name="c${i}" value="${esc(o)}" style="width:auto"> ${esc(o)}</label>`).join("")).join("")+`<p><button class="btn" id="ctlok">Enviar respuestas</button></p>`;
+  $("#ctlok").onclick=()=>{
+    const sel=qs.map((x,i)=>{const c=box.querySelector(`input[name=c${i}]:checked`);return c?c.value:null});
+    if(sel.includes(null)){$("#ctlmsg").textContent="Respondé las 4 preguntas.";return}
+    const ok=sel.filter((v,i)=>v===qs[i].a).length;
+    box.hidden=true;$("#ctlbtn").hidden=false;
+    if(ok===4){localStorage.setItem(lecKey(),JSON.stringify({t:tl,q:4,f:Date.now()}))}
+    else{tl=MIN-20;ctlNote=`Acertaste ${ok} de 4. Necesitás las 4. Releé la teoría y probá de nuevo con preguntas nuevas. `}
+    updCtl();
+  };
+}
+$("#ctlbtn").onclick=()=>leido()?show("juegos"):openQuiz();
+$("#nombre").addEventListener("input",updCtl);
+setInterval(()=>{if(document.hidden||$("#teoria").hidden)return;tl++;updCtl()},1000);
+updCtl();
+/* ===== FIN CONTROL DE LECTURA ===== */
+
 const G={
 trivia:{n:"Trivia de la materia",items:[
  {q:"¿Qué es la materia?",a:"Todo lo que tiene masa y ocupa un lugar en el espacio",o:["Todo lo que tiene masa y ocupa un lugar en el espacio","Solo lo que podemos tocar","Únicamente los sólidos","Lo que tiene forma propia"]},
@@ -184,6 +236,8 @@ cambios:{n:"¿Qué cambio de estado es?",items:[
 
 let run=null;
 function show(id){
+  if(id==="juegos"&&!leido()){$("#aviso").textContent="Primero leé la teoría y aprobá el control de lectura para poder jugar.";id="teoria"}
+  else if(id==="juegos")$("#aviso").textContent="";
   $$("main section").forEach(s=>s.hidden=s.id!==id);
   $$("nav button").forEach(b=>b.classList.toggle("on",b.dataset.t===id));
   if(id==="ranking")loadRank();
@@ -194,10 +248,12 @@ $$("nav button").forEach(b=>b.onclick=()=>show(b.dataset.t));
 $$("[data-go]").forEach(b=>b.onclick=()=>show(b.dataset.go));
 $$("[data-play]").forEach(b=>b.onclick=()=>start(b.dataset.play));
 $("#nombre").value=localStorage.getItem("nm")||"";
+updCtl();
 
 function start(k){
-  const nm=$("#nombre").value.trim();
-  if(!nm){$("#aviso").textContent="Escribí tu nombre arriba para poder jugar.";$("#nombre").focus();return}
+  const nm=$("#nombre").value.trim().replace(/\s+/g," ");
+  if(!nombreOK()){$("#aviso").textContent="Escribí tu nombre y apellido arriba para poder jugar.";$("#nombre").focus();return}
+  if(!leido()){$("#aviso").textContent="Primero leé la teoría y aprobá el control de lectura.";show("teoria");return}
   $("#aviso").textContent="";localStorage.setItem("nm",nm);
   const items=sh(G[k].items).slice(0,10).map(x=>({...x,o:k==="trivia"?sh(x.o):x.o||sh([x.a,...sh(CAMB.filter(c=>c!==x.a)).slice(0,3)])}));
   run={k,items,i:0,ok:0,t0:Date.now(),busy:false,nm};
@@ -222,7 +278,8 @@ async function finish(){
   const r=run,tot=r.items.length,seg=Math.round((Date.now()-r.t0)/1000);
   const bonus=r.ok>=tot/2?Math.max(0,Math.min(10,Math.floor((tot*9-seg)/9))):0;
   const pts=r.ok*10+bonus,nota=(r.ok/tot*10).toFixed(1).replace(".0","");
-  const rec={n:r.nm,j:r.k,p:pts,nota:+nota.replace(",","."),s:seg,f:Date.now()};
+  let L={};try{L=JSON.parse(localStorage.getItem("lec|"+r.nm.toLowerCase())||"{}")}catch(e){}
+  const rec={n:r.nm,j:r.k,p:pts,nota:+nota.replace(",","."),s:seg,lec:L.t||0,f:Date.now()};
   $("#pb").style.width="100%";
   $("#area").innerHTML=`<div class="res"><p class="big">${pts} puntos</p><p>${r.ok} aciertos de ${tot} · Nota ${nota} · Tiempo ${seg} s (bonus ${bonus})</p><p>${r.ok===tot?"¡Perfecto!":r.ok>=tot*.6?"¡Muy bien!":"Repasá la teoría y volvé a intentarlo."}</p><p><button class="btn" id="again">Jugar de nuevo</button> <button class="btn" id="vr">Ver ranking</button> <button class="btn" id="men">Otros juegos</button></p></div>`;
   $("#again").onclick=()=>start(r.k);
@@ -272,13 +329,13 @@ function drawRank(rows){
   const by={};
   Object.values(best).forEach(r=>{
     if(f!=="all"&&r.j!==f)return;
-    const k=r.n.toLowerCase(),o=by[k]||(by[k]={n:r.n,p:0,s:0,nt:[]});
-    o.p+=r.p;o.s+=r.s;o.nt.push(r.nota);
+    const k=r.n.toLowerCase(),o=by[k]||(by[k]={n:r.n,p:0,s:0,nt:[],lec:0});
+    o.p+=r.p;o.s+=r.s;o.nt.push(r.nota);o.lec=r.lec||o.lec;
   });
-  const list=Object.values(by).sort((a,b)=>b.p-a.p||a.s-b.s).slice(0,10);
+  const list=Object.values(by).sort((a,b)=>b.p-a.p||a.s-b.s).slice(0,100);
   const me=($("#nombre").value||"").trim().toLowerCase();
   const med=["🥇","🥈","🥉"];
-  $("#rk").innerHTML=list.length?`<tr><th>Puesto</th><th>Nombre</th><th>Puntos</th><th>Nota</th><th>Tiempo</th></tr>`+list.map((o,i)=>`<tr class="${o.n.toLowerCase()===me?"me-row":""}"><td>${med[i]||i+1}</td><td>${esc(o.n)}</td><td>${o.p}</td><td>${(o.nt.reduce((a,b)=>a+b,0)/o.nt.length).toFixed(1)}</td><td>${o.s} s</td></tr>`).join(""):`<tr><td>Todavía no hay puntajes. Jugá una partida para aparecer acá.</td></tr>`;
+  $("#rk").innerHTML=list.length?`<tr><th>Puesto</th><th>Nombre</th><th>Puntos</th><th>Nota</th><th>Tiempo juego</th><th>Lectura</th></tr>`+list.map((o,i)=>`<tr class="${o.n.toLowerCase()===me?"me-row":""}"><td>${med[i]||i+1}</td><td>${esc(o.n)}</td><td>${o.p}</td><td>${(o.nt.reduce((a,b)=>a+b,0)/o.nt.length).toFixed(1)}</td><td>${o.s} s</td><td>${o.lec?o.lec+" s":"-"}</td></tr>`).join(""):`<tr><td>Todavía no hay puntajes. Jugá una partida para aparecer acá.</td></tr>`;
 }
 </script>
 </body>

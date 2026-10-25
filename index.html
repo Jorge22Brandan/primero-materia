@@ -364,7 +364,7 @@ async function finish(){
   run=null;
   await save(rec);
 }
-
+  
 function pic(el){
   const e=el.dataset.e,c={s:"#14305c",l:"#2a7fd4",g:"#d8434b",p:"#a63fd0"}[e];
   const G9=[[20,18],[70,12],[120,24],[40,50],[95,45],[140,60],[22,76],[75,72],[118,80]];
@@ -414,5 +414,6 @@ function drawRank(rows){
   $("#rk").innerHTML=list.length?`<tr><th>Puesto</th><th>Nombre</th><th>Puntos</th><th>Nota</th><th>Tiempo juego</th><th>Lectura</th></tr>`+list.map((o,i)=>`<tr class="${o.n.toLowerCase()===me?"me-row":""}"><td>${med[i]||i+1}</td><td>${esc(o.n)}</td><td>${o.p}</td><td>${(o.nt.reduce((a,b)=>a+b,0)/o.nt.length).toFixed(1)}</td><td>${o.s} s</td><td>${o.lec?o.lec+" s":"-"}</td></tr>`).join(""):`<tr><td>Todavía no hay puntajes. Jugá una partida para aparecer acá.</td></tr>`;
 }
 </script>
+  <script src="teoria2.js"></script>
 </body>
 </html>
